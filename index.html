@@ -1,283 +1,9 @@
-import express from "express"
-import cors from "cors"
-import crypto from "crypto"
-import path from "path"
-import { fileURLToPath } from "url"
-
-const app = express()
-
-app.use(cors())
-app.use(express.json())
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-/* ===============================
-SERVE INDEX
-================================ */
-
-app.get("/", (req,res)=>{
-res.sendFile(path.join(__dirname,"index.html"))
-})
-
-/* ===============================
-DATABASE
-================================ */
-
-const users={}
-const rateLimits={}
-
-/* ===============================
-UTILS
-================================ */
-
-function rand(max=1){
-return Math.random()*max
-}
-
-function id(prefix){
-return prefix+"_"+crypto.randomBytes(4).toString("hex")
-}
-
-const countries=["US","UK","DE","SG","BR"]
-const devices=["ios","android","windows","linux"]
-const banks=["global_bank","metro_credit","retail_bank"]
-
-/* ===============================
-GENERATORS
-================================ */
-
-function entity(){
-return{
-entity_id:id("ent"),
-country:countries[Math.floor(rand(countries.length))],
-risk:rand()
-}
-}
-
-function bank(){
-return{
-bank_id:id("bank"),
-name:banks[Math.floor(rand(banks.length))],
-country:countries[Math.floor(rand(countries.length))]
-}
-}
-
-function account(){
-return{
-account_id:id("acct"),
-bank:banks[Math.floor(rand(banks.length))],
-balance:Math.floor(rand(100000))
-}
-}
-
-function device(){
-return{
-device_id:id("dev"),
-os:devices[Math.floor(rand(devices.length))],
-trust_score:rand()
-}
-}
-
-function transaction(){
-return{
-tx_id:id("tx"),
-amount:Math.floor(rand(5000)),
-currency:"USD",
-channel:["card","wire","online"][Math.floor(rand(3))],
-timestamp:Date.now()
-}
-}
-
-function fraudRing(){
-return{
-ring_id:id("ring"),
-members:[id("ent"),id("ent"),id("ent")],
-score:rand()
-}
-}
-
-function amlFlow(){
-return{
-flow_id:id("aml"),
-risk_score:rand(),
-path:[id("acct"),id("acct"),id("acct")]
-}
-}
-
-function session(){
-return{
-session_id:id("sess"),
-device:devices[Math.floor(rand(devices.length))],
-ip:`192.168.${Math.floor(rand(255))}.${Math.floor(rand(255))}`,
-timestamp:Date.now()
-}
-}
-
-/* ===============================
-AUTH
-================================ */
-
-function auth(req,res,next){
-
-const key=req.headers["x-api-key"]
-
-if(!users[key]){
-return res.status(401).json({error:"invalid key"})
-}
-
-if(users[key].credits<=0){
-return res.status(402).json({error:"no credits"})
-}
-
-users[key].credits--
-users[key].calls++
-
-next()
-}
-
-/* ===============================
-RATE LIMIT
-================================ */
-
-function rateLimit(req,res,next){
-
-const key=req.headers["x-api-key"]
-
-if(!rateLimits[key]){
-rateLimits[key]={count:0,time:Date.now()}
-}
-
-const window=1000
-const limit=500
-
-if(Date.now()-rateLimits[key].time>window){
-rateLimits[key].count=0
-rateLimits[key].time=Date.now()
-}
-
-rateLimits[key].count++
-
-if(rateLimits[key].count>limit){
-return res.status(429).json({error:"rate limit"})
-}
-
-next()
-}
-
-/* ===============================
-CREATE KEY
-================================ */
-
-app.post("/create-key",(req,res)=>{
-
-const key="sf_"+crypto.randomBytes(8).toString("hex")
-
-users[key]={
-credits:100000,
-calls:0
-}
-
-res.json({
-api_key:key,
-credits:100000
-})
-
-})
-
-/* ===============================
-ADD CREDITS
-================================ */
-
-app.post("/add-credits",(req,res)=>{
-
-const {key,amount}=req.body
-
-if(!users[key]) return res.json({error:"invalid key"})
-
-users[key].credits+=amount
-
-res.json({credits:users[key].credits})
-
-})
-
-/* ===============================
-DASHBOARD
-================================ */
-
-app.get("/dashboard",(req,res)=>{
-
-const key=req.headers["x-api-key"]
-
-if(!users[key]) return res.json({error:"invalid key"})
-
-res.json(users[key])
-
-})
-
-/* ===============================
-API ROUTES
-================================ */
-
-app.get("/api/entity",auth,rateLimit,(req,res)=>res.json(entity()))
-app.get("/api/bank",auth,rateLimit,(req,res)=>res.json(bank()))
-app.get("/api/account",auth,rateLimit,(req,res)=>res.json(account()))
-app.get("/api/device",auth,rateLimit,(req,res)=>res.json(device()))
-app.get("/api/transaction",auth,rateLimit,(req,res)=>res.json(transaction()))
-app.get("/api/fraud-ring",auth,rateLimit,(req,res)=>res.json(fraudRing()))
-app.get("/api/aml-flow",auth,rateLimit,(req,res)=>res.json(amlFlow()))
-app.get("/api/session",auth,rateLimit,(req,res)=>res.json(session()))
-
-/* ===============================
-STREAM
-================================ */
-
-app.get("/stream",(req,res)=>{
-
-res.setHeader("Content-Type","text/event-stream")
-res.setHeader("Cache-Control","no-cache")
-res.setHeader("Connection","keep-alive")
-
-const interval=setInterval(()=>{
-
-const data={
-entity:entity(),
-account:account(),
-transaction:transaction()
-}
-
-res.write(`data: ${JSON.stringify(data)}\n\n`)
-
-},1000)
-
-const heartbeat=setInterval(()=>{
-res.write(": ping\n\n")
-},15000)
-
-req.on("close",()=>{
-clearInterval(interval)
-clearInterval(heartbeat)
-})
-
-})
-
-/* ===============================
-SERVER
-================================ */
-
-const PORT=process.env.PORT || 3000
-
-app.listen(PORT,()=>{
-console.log("API running on "+PORT)
-})<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
-
 <head>
 
 <meta charset="UTF-8">
-<title>Synthetic Financial Universe API</title>
-
-<script src="https://www.paypal.com/sdk/js?client-id=ATRqtzWJiEgWzPMxEn3MuBmbvv_JaiCvJHFriOkE3bXsAkBwzytltfTyXUy6NL_5hCor4eBoZu6S2FBX"></script>
+<title>Synthetic Financial API</title>
 
 <style>
 
@@ -304,9 +30,6 @@ width:40%;
 background:#020304;
 border-left:2px solid #1b2c30;
 padding:20px;
-position:sticky;
-top:0;
-height:100vh;
 }
 
 #stream{
@@ -315,27 +38,17 @@ overflow:auto;
 font-size:12px;
 }
 
-h1{
-color:#49ffd2;
-}
-
 button{
 padding:10px;
-margin:6px;
+margin:5px;
 background:#49ffd2;
 border:none;
 cursor:pointer;
 }
 
-button:hover{
-opacity:0.8;
-}
-
 pre{
 background:#020304;
 padding:20px;
-border:1px solid #1b2c30;
-overflow:auto;
 }
 
 .endpoint{
@@ -343,13 +56,6 @@ background:#111;
 padding:10px;
 margin:5px 0;
 border-left:3px solid #49ffd2;
-}
-
-.plan{
-background:#111;
-padding:15px;
-margin:10px 0;
-border-left:4px solid #49ffd2;
 }
 
 </style>
@@ -364,8 +70,7 @@ border-left:4px solid #49ffd2;
 
 <h1>Synthetic Financial Universe API</h1>
 
-<p>Enterprise Synthetic Finance Dataset Generator</p>
-<p><b>Price:</b> $0.01 per API call</p>
+<p>$0.01 per API call</p>
 
 <hr>
 
@@ -377,49 +82,6 @@ border-left:4px solid #49ffd2;
 
 <hr>
 
-<h2>Usage Dashboard</h2>
-
-<button onclick="dashboard()">Load Usage</button>
-
-<pre id="dashboard"></pre>
-
-<hr>
-
-<h2>Buy API Credits</h2>
-
-<div class="plan">
-<b>$10</b> – 1,000 API Calls
-<div id="plan1"></div>
-</div>
-
-<div class="plan">
-<b>$100</b> – 10,000 API Calls
-<div id="plan2"></div>
-</div>
-
-<div class="plan">
-<b>$1,000</b> – 100,000 API Calls
-<div id="plan3"></div>
-</div>
-
-<div class="plan">
-<b>$10,000</b> – 1,000,000 API Calls
-<div id="plan4"></div>
-</div>
-
-<hr>
-
-<h2>Available APIs</h2>
-
-<div class="endpoint">GET /api/entity</div>
-<div class="endpoint">GET /api/bank</div>
-<div class="endpoint">GET /api/account</div>
-<div class="endpoint">GET /api/device</div>
-<div class="endpoint">GET /api/transaction</div>
-<div class="endpoint">GET /api/fraud-ring</div>
-
-<hr>
-
 <h2>API Playground</h2>
 
 <button onclick="callAPI('entity')">/api/entity</button>
@@ -428,52 +90,18 @@ border-left:4px solid #49ffd2;
 <button onclick="callAPI('device')">/api/device</button>
 <button onclick="callAPI('transaction')">/api/transaction</button>
 <button onclick="callAPI('fraud-ring')">/api/fraud-ring</button>
+<button onclick="callAPI('aml-flow')">/api/aml-flow</button>
+<button onclick="callAPI('session')">/api/session</button>
 
 <pre id="result"></pre>
-
-<hr>
-
-<h2>Download Dataset</h2>
-
-<button onclick="downloadDataset()">Download 10k Transactions</button>
-
-<hr>
-
-<h2>Bank Network Graph</h2>
-
-<button onclick="network()">Load Network</button>
-
-<pre id="network"></pre>
-
-<hr>
-
-<h2>Fraud Ring Example</h2>
-
-<button onclick="fraud()">Generate Fraud Ring</button>
-
-<pre id="fraud"></pre>
-
-<hr>
-
-<h2>API Example (JavaScript)</h2>
-
-<pre>
-fetch("https://fintwin-neyi.onrender.com/api/transaction",{
-headers:{
-"x-api-key":"YOUR_KEY"
-}
-})
-.then(r=>r.json())
-.then(console.log)
-</pre>
 
 </div>
 
 <div class="right">
 
-<h2>Live Financial Stream</h2>
+<h2>Live Data Stream</h2>
 
-<pre id="stream">Connecting...</pre>
+<pre id="stream">connecting...</pre>
 
 </div>
 
@@ -481,13 +109,9 @@ headers:{
 
 <script>
 
-const API="https://fintwin-neyi.onrender.com"
+const API=window.location.origin
 
 let KEY=""
-
-/* ======================
-CREATE API KEY
-====================== */
 
 async function createKey(){
 
@@ -501,31 +125,10 @@ JSON.stringify(data,null,2)
 
 }
 
-/* ======================
-DASHBOARD
-====================== */
-
-async function dashboard(){
-
-const r=await fetch(API+"/dashboard",{
-headers:{ "x-api-key":KEY }
-})
-
-const data=await r.json()
-
-document.getElementById("dashboard").textContent=
-JSON.stringify(data,null,2)
-
-}
-
-/* ======================
-CALL API
-====================== */
-
 async function callAPI(endpoint){
 
 if(!KEY){
-alert("Create API key first")
+alert("create key first")
 return
 }
 
@@ -540,50 +143,7 @@ JSON.stringify(data,null,2)
 
 }
 
-/* ======================
-DATASET DOWNLOAD
-====================== */
-
-function downloadDataset(){
-
-window.open(API+"/download")
-
-}
-
-/* ======================
-NETWORK GRAPH
-====================== */
-
-async function network(){
-
-const r=await fetch(API+"/network")
-const data=await r.json()
-
-document.getElementById("network").textContent=
-JSON.stringify(data,null,2)
-
-}
-
-/* ======================
-FRAUD RING
-====================== */
-
-async function fraud(){
-
-const r=await fetch(API+"/api/fraud-ring",{
-headers:{ "x-api-key":KEY }
-})
-
-const data=await r.json()
-
-document.getElementById("fraud").textContent=
-JSON.stringify(data,null,2)
-
-}
-
-/* ======================
-LIVE STREAM
-====================== */
+/* STREAM */
 
 const streamBox=document.getElementById("stream")
 
@@ -593,12 +153,7 @@ let lines=[]
 
 stream.onmessage=function(e){
 
-try{
-const json=JSON.parse(e.data)
-lines.unshift(JSON.stringify(json))
-}catch{
 lines.unshift(e.data)
-}
 
 if(lines.length>30){
 lines.pop()
@@ -607,52 +162,6 @@ lines.pop()
 streamBox.textContent=lines.join("\n")
 
 }
-
-/* ======================
-PAYPAL PLANS
-====================== */
-
-function plan(button,price,credits){
-
-paypal.Buttons({
-
-createOrder:function(data,actions){
-
-return actions.order.create({
-purchase_units:[{
-amount:{value:price}
-}]
-})
-
-},
-
-onApprove:function(data,actions){
-
-return actions.order.capture().then(async function(){
-
-await fetch(API+"/add-credits",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-key:KEY,
-amount:credits
-})
-})
-
-alert(credits+" credits added")
-
-})
-
-}
-
-}).render(button)
-
-}
-
-plan("#plan1","10",1000)
-plan("#plan2","100",10000)
-plan("#plan3","1000",100000)
-plan("#plan4","10000",1000000)
 
 </script>
 
