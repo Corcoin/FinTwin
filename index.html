@@ -4,7 +4,6 @@
 <head>
 
 <meta charset="UTF-8">
-
 <title>Synthetic Financial Universe API</title>
 
 <script src="https://www.paypal.com/sdk/js?client-id=ATRqtzWJiEgWzPMxEn3MuBmbvv_JaiCvJHFriOkE3bXsAkBwzytltfTyXUy6NL_5hCor4eBoZu6S2FBX"></script>
@@ -18,22 +17,16 @@ font-family:monospace;
 margin:0;
 }
 
-/* MAIN LAYOUT */
-
 .container{
 display:flex;
 height:100vh;
 }
-
-/* LEFT SIDE (DOCS) */
 
 .left{
 width:60%;
 padding:40px;
 overflow:auto;
 }
-
-/* RIGHT SIDE STREAM */
 
 .right{
 width:40%;
@@ -45,15 +38,11 @@ top:0;
 height:100vh;
 }
 
-/* STREAM WINDOW */
-
 #stream{
 height:95%;
 overflow:auto;
 font-size:12px;
 }
-
-/* UI */
 
 h1{
 color:#49ffd2;
@@ -93,14 +82,11 @@ border-left:3px solid #49ffd2;
 
 <div class="container">
 
-<!-- LEFT SIDE -->
-
 <div class="left">
 
 <h1>Synthetic Financial Universe API</h1>
 
 <p>Enterprise Synthetic Finance Dataset Generator</p>
-
 <p><b>Price:</b> $0.01 per API call</p>
 
 <hr>
@@ -188,13 +174,11 @@ headers:{
 </div>
 
 
-<!-- RIGHT SIDE STREAM -->
-
 <div class="right">
 
 <h2>Live Financial Stream</h2>
 
-<pre id="stream"></pre>
+<pre id="stream">Connecting...</pre>
 
 </div>
 
@@ -211,7 +195,6 @@ let KEY=""
 async function createKey(){
 
 const r=await fetch(API+"/create-key",{method:"POST"})
-
 const data=await r.json()
 
 KEY=data.api_key
@@ -226,17 +209,12 @@ JSON.stringify(data,null,2)
 async function callAPI(endpoint){
 
 if(!KEY){
-
 alert("Create API key first")
-
 return
-
 }
 
 const r=await fetch(API+"/api/"+endpoint,{
-headers:{
-"x-api-key":KEY
-}
+headers:{ "x-api-key":KEY }
 })
 
 const data=await r.json()
@@ -246,34 +224,51 @@ JSON.stringify(data,null,2)
 
 }
 
-/* STREAM */
+/* =========================
+LIVE STREAM
+========================= */
 
 const streamBox=document.getElementById("stream")
 
-const stream=new EventSource("/stream")
+const stream=new EventSource(API+"/stream")
+
+let lines=[]
+
+stream.onopen=function(){
+console.log("stream connected")
+}
+
+stream.onerror=function(){
+console.log("stream error")
+}
 
 stream.onmessage=function(e){
 
-streamBox.textContent =
-e.data + "\n\n" + streamBox.textContent
+try{
+const json=JSON.parse(e.data)
+lines.unshift(JSON.stringify(json))
+}catch{
+lines.unshift(e.data)
+}
+
+if(lines.length>30){
+lines.pop()
+}
+
+streamBox.textContent=lines.join("\n")
 
 }
-  console.log("stream connected")
 
 /* PAYPAL */
 
 paypal.Buttons({
 
 createOrder:function(data,actions){
-
 return actions.order.create({
-
 purchase_units:[{
 amount:{value:"10"}
 }]
-
 })
-
 },
 
 onApprove:function(data,actions){
@@ -281,18 +276,12 @@ onApprove:function(data,actions){
 return actions.order.capture().then(async function(details){
 
 await fetch(API+"/add-credits",{
-
 method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
+headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 key:KEY,
 amount:1000
 })
-
 })
 
 alert("Credits Added")
@@ -306,5 +295,4 @@ alert("Credits Added")
 </script>
 
 </body>
-
 </html>
