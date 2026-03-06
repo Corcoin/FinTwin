@@ -15,10 +15,45 @@ body{
 background:#0b0f14;
 color:#d7fff3;
 font-family:monospace;
-padding:40px;
-max-width:1200px;
-margin:auto;
+margin:0;
 }
+
+/* MAIN LAYOUT */
+
+.container{
+display:flex;
+height:100vh;
+}
+
+/* LEFT SIDE (DOCS) */
+
+.left{
+width:60%;
+padding:40px;
+overflow:auto;
+}
+
+/* RIGHT SIDE STREAM */
+
+.right{
+width:40%;
+background:#020304;
+border-left:2px solid #1b2c30;
+padding:20px;
+position:sticky;
+top:0;
+height:100vh;
+}
+
+/* STREAM WINDOW */
+
+#stream{
+height:95%;
+overflow:auto;
+font-size:12px;
+}
+
+/* UI */
 
 h1{
 color:#49ffd2;
@@ -50,16 +85,17 @@ margin:5px 0;
 border-left:3px solid #49ffd2;
 }
 
-#stream{
-height:350px;
-overflow:auto;
-}
-
 </style>
 
 </head>
 
 <body>
+
+<div class="container">
+
+<!-- LEFT SIDE -->
+
+<div class="left">
 
 <h1>Synthetic Financial Universe API</h1>
 
@@ -113,12 +149,6 @@ overflow:auto;
 
 <hr>
 
-<h2>Live Financial Stream</h2>
-
-<pre id="stream"></pre>
-
-<hr>
-
 <h2>curl Example</h2>
 
 <pre>
@@ -155,7 +185,20 @@ headers:{
 .then(console.log)
 </pre>
 
-<hr>
+</div>
+
+
+<!-- RIGHT SIDE STREAM -->
+
+<div class="right">
+
+<h2>Live Financial Stream</h2>
+
+<pre id="stream"></pre>
+
+</div>
+
+</div>
 
 <script>
 
@@ -203,7 +246,7 @@ JSON.stringify(data,null,2)
 
 }
 
-/* LIVE STREAM */
+/* STREAM */
 
 const streamBox=document.getElementById("stream")
 
@@ -211,8 +254,8 @@ const stream=new EventSource(API+"/stream")
 
 stream.onmessage=function(e){
 
-streamBox.textContent=
-e.data+"\n\n"+streamBox.textContent
+streamBox.textContent =
+e.data + "\n\n" + streamBox.textContent
 
 }
 
@@ -225,9 +268,7 @@ createOrder:function(data,actions){
 return actions.order.create({
 
 purchase_units:[{
-
 amount:{value:"10"}
-
 }]
 
 })
