@@ -238,8 +238,11 @@ app.get("/stream",(req,res)=>{
 res.setHeader("Content-Type","text/event-stream")
 res.setHeader("Cache-Control","no-cache")
 res.setHeader("Connection","keep-alive")
+res.setHeader("Access-Control-Allow-Origin","*")
 
-setInterval(()=>{
+res.flushHeaders()
+
+const interval=setInterval(()=>{
 
 const data={
 entity:pools.entity.pop(),
@@ -251,6 +254,10 @@ transaction:pools.transaction.pop()
 res.write(`data: ${JSON.stringify(data)}\n\n`)
 
 },1000)
+
+req.on("close",()=>{
+clearInterval(interval)
+})
 
 })
 
