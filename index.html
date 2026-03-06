@@ -250,7 +250,7 @@ JSON.stringify(data,null,2)
 
 const streamBox=document.getElementById("stream")
 
-const stream=new EventSource(API+"/stream")
+const stream=new EventSource("/stream")
 
 stream.onmessage=function(e){
 
