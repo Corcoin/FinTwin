@@ -3,10 +3,9 @@
 <head>
 
 <meta charset="UTF-8">
+<title>Synthetic Financial Universe API</title>
 
-<title>Synthetic Financial Universe</title>
-
-<script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID"></script>
+<script src="https://www.paypal.com/sdk/js?client-id=ATRqtzWJiEgWzPMxEn3MuBmbvv_JaiCvJHFriOkE3bXsAkBwzytltfTyXUy6NL_5hCor4eBoZu6S2FBX"></script>
 
 <style>
 
@@ -17,29 +16,44 @@ font-family:monospace;
 padding:40px;
 }
 
+h1{
+color:#49ffd2;
+}
+
 .panel{
 background:#121923;
 padding:20px;
-margin-bottom:30px;
+margin-bottom:25px;
+border-left:4px solid #49ffd2;
 }
 
 button{
 padding:10px;
-background:#00ffd0;
+background:#49ffd2;
 border:none;
 cursor:pointer;
-}
-
-#stream{
-height:300px;
-overflow:auto;
-background:#000;
-padding:10px;
+margin:5px;
 }
 
 pre{
+background:#020304;
+padding:15px;
+overflow:auto;
+}
+
+#stream{
+height:350px;
+overflow:auto;
 background:#000;
 padding:10px;
+border:1px solid #1b2c30;
+}
+
+.endpoint{
+background:#111;
+padding:10px;
+margin:6px 0;
+border-left:3px solid #49ffd2;
 }
 
 </style>
@@ -50,46 +64,77 @@ padding:10px;
 
 <h1>Synthetic Financial Universe API</h1>
 
+<p>Enterprise Synthetic Finance Dataset Generator</p>
+
+
 <div class="panel">
 
 <h2>Create API Key</h2>
 
-<button onclick="createKey()">Generate Key</button>
+<button onclick="createKey()">Get API Key (1 Free Call)</button>
 
 <pre id="key"></pre>
 
 </div>
 
+
 <div class="panel">
 
 <h2>Buy Credits</h2>
+
+<p>$10 = 10 API Calls</p>
 
 <div id="paypal-button"></div>
 
 </div>
 
+
 <div class="panel">
 
 <h2>Endpoints</h2>
 
+<div class="endpoint">GET /api/universe</div>
+<div class="endpoint">GET /stream</div>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Test API Call</h2>
+
+<button onclick="testCall()">Run Test</button>
+
+<pre id="result"></pre>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Live Firehose Stream</h2>
+
+<button onclick="startStream()">Start Stream</button>
+<button onclick="stopStream()">Stop</button>
+
+<div id="stream"></div>
+
+</div>
+
+
+<div class="panel">
+
+<h2>curl Example</h2>
+
 <pre>
 
-/api/universe
-/stream
+curl -H "x-api-key: YOUR_KEY" \
+https://fintwin-neyi.onrender.com/api/universe
 
 </pre>
 
 </div>
 
-<div class="panel">
-
-<h2>Live Stream</h2>
-
-<button onclick="startStream()">Start</button>
-
-<div id="stream"></div>
-
-</div>
 
 <div class="panel">
 
@@ -97,17 +142,18 @@ padding:10px;
 
 <pre>
 
-fetch("https://YOUR_API/api/universe",{
+fetch("https://fintwin-neyi.onrender.com/api/universe",{
 headers:{
 "x-api-key":"YOUR_KEY"
 }
 })
 .then(r=>r.json())
-.then(console.log)
+.then(data=>console.log(data))
 
 </pre>
 
 </div>
+
 
 <div class="panel">
 
@@ -117,10 +163,13 @@ headers:{
 
 import requests
 
-r=requests.get(
-"https://YOUR_API/api/universe",
-headers={"x-api-key":"YOUR_KEY"}
-)
+url="https://fintwin-neyi.onrender.com/api/universe"
+
+headers={
+"x-api-key":"YOUR_KEY"
+}
+
+r=requests.get(url,headers=headers)
 
 print(r.json())
 
@@ -128,11 +177,14 @@ print(r.json())
 
 </div>
 
+
 <script>
 
-const API="https://YOUR_API"
+const API="https://fintwin-neyi.onrender.com"
 
 let API_KEY=""
+let streamConnection=null
+
 
 /* CREATE KEY */
 
@@ -148,15 +200,54 @@ document.getElementById("key").textContent=JSON.stringify(data,null,2)
 
 }
 
+
+/* TEST API */
+
+async function testCall(){
+
+if(!API_KEY){
+
+alert("Create API key first")
+
+return
+
+}
+
+const r=await fetch(API+"/api/universe",{
+
+headers:{
+
+"x-api-key":API_KEY
+
+}
+
+})
+
+const data=await r.json()
+
+document.getElementById("result").textContent=
+JSON.stringify(data,null,2)
+
+}
+
+
 /* STREAM */
 
 function startStream(){
 
+if(!API_KEY){
+
+alert("Create API key first")
+
+return
+
+}
+
 const stream=document.getElementById("stream")
 
-const evt=new EventSource(API+"/stream")
+streamConnection=new EventSource(API+"/stream?key="+API_KEY)
 
-evt.onmessage=function(e){
+streamConnection.onmessage=function(e){
 
 const line=document.createElement("pre")
 
@@ -167,6 +258,17 @@ stream.prepend(line)
 }
 
 }
+
+function stopStream(){
+
+if(streamConnection){
+
+streamConnection.close()
+
+}
+
+}
+
 
 /* PAYPAL */
 
@@ -188,7 +290,7 @@ amount:{value:"10"}
 
 onApprove:function(data,actions){
 
-return actions.order.capture().then(async function(){
+return actions.order.capture().then(async function(details){
 
 await fetch(API+"/add-credits",{
 
