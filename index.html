@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <meta charset="UTF-8">
-<title>Synthetic Financial API</title>
+
+<title>Synthetic Financial Universe API</title>
+
+<script src="https://www.paypal.com/sdk/js?client-id=YOUR_CLIENT_ID"></script>
 
 <style>
 
@@ -46,16 +50,18 @@ border:none;
 cursor:pointer;
 }
 
-pre{
-background:#020304;
-padding:20px;
-}
-
 .endpoint{
 background:#111;
 padding:10px;
 margin:5px 0;
 border-left:3px solid #49ffd2;
+}
+
+.plan{
+background:#111;
+padding:15px;
+margin:10px 0;
+border-left:4px solid #49ffd2;
 }
 
 </style>
@@ -82,16 +88,65 @@ border-left:3px solid #49ffd2;
 
 <hr>
 
-<h2>API Playground</h2>
+<h2>Buy Credits</h2>
 
-<button onclick="callAPI('entity')">/api/entity</button>
-<button onclick="callAPI('bank')">/api/bank</button>
-<button onclick="callAPI('account')">/api/account</button>
-<button onclick="callAPI('device')">/api/device</button>
-<button onclick="callAPI('transaction')">/api/transaction</button>
-<button onclick="callAPI('fraud-ring')">/api/fraud-ring</button>
-<button onclick="callAPI('aml-flow')">/api/aml-flow</button>
-<button onclick="callAPI('session')">/api/session</button>
+<div class="plan">
+
+<b>$10 — 1,000 calls</b>
+
+<div id="plan1"></div>
+
+</div>
+
+<div class="plan">
+
+<b>$100 — 10,000 calls</b>
+
+<div id="plan2"></div>
+
+</div>
+
+<div class="plan">
+
+<b>$1,000 — 100,000 calls</b>
+
+<div id="plan3"></div>
+
+</div>
+
+<div class="plan">
+
+<b>$10,000 — 1,000,000 calls</b>
+
+<div id="plan4"></div>
+
+</div>
+
+<hr>
+
+<h2>APIs</h2>
+
+<div class="endpoint">/api/entity</div>
+<div class="endpoint">/api/account</div>
+<div class="endpoint">/api/device</div>
+<div class="endpoint">/api/transaction</div>
+<div class="endpoint">/api/fraud-ring</div>
+<div class="endpoint">/api/aml-flow</div>
+<div class="endpoint">/api/bank</div>
+<div class="endpoint">/api/session</div>
+
+<hr>
+
+<h2>Playground</h2>
+
+<button onclick="callAPI('entity')">entity</button>
+<button onclick="callAPI('account')">account</button>
+<button onclick="callAPI('device')">device</button>
+<button onclick="callAPI('transaction')">transaction</button>
+<button onclick="callAPI('fraud-ring')">fraud-ring</button>
+<button onclick="callAPI('aml-flow')">aml-flow</button>
+<button onclick="callAPI('bank')">bank</button>
+<button onclick="callAPI('session')">session</button>
 
 <pre id="result"></pre>
 
@@ -99,9 +154,9 @@ border-left:3px solid #49ffd2;
 
 <div class="right">
 
-<h2>Live Data Stream</h2>
+<h2>Live Financial Stream</h2>
 
-<pre id="stream">connecting...</pre>
+<pre id="stream"></pre>
 
 </div>
 
@@ -109,59 +164,105 @@ border-left:3px solid #49ffd2;
 
 <script>
 
-const API=window.location.origin
+const API = window.location.origin
 
 let KEY=""
 
+/* API KEY */
+
 async function createKey(){
 
-const r=await fetch(API+"/create-key",{method:"POST"})
-const data=await r.json()
+const r = await fetch(API+"/create-key",{method:"POST"})
 
-KEY=data.api_key
+const d = await r.json()
 
-document.getElementById("key").textContent=
-JSON.stringify(data,null,2)
+KEY=d.api_key
+
+document.getElementById("key").textContent=KEY
 
 }
 
-async function callAPI(endpoint){
+/* API CALL */
 
-if(!KEY){
-alert("create key first")
-return
+async function callAPI(e){
+
+const r = await fetch(API+"/api/"+e,{
+headers:{
+"x-api-key":KEY
 }
-
-const r=await fetch(API+"/api/"+endpoint,{
-headers:{ "x-api-key":KEY }
 })
 
-const data=await r.json()
+const d = await r.json()
 
 document.getElementById("result").textContent=
-JSON.stringify(data,null,2)
+JSON.stringify(d,null,2)
 
 }
 
 /* STREAM */
 
-const streamBox=document.getElementById("stream")
+const stream = new EventSource(API+"/stream")
 
-const stream=new EventSource(API+"/stream")
+const box = document.getElementById("stream")
 
 let lines=[]
 
-stream.onmessage=function(e){
+stream.onmessage=(e)=>{
 
 lines.unshift(e.data)
 
-if(lines.length>30){
+if(lines.length>30)
 lines.pop()
+
+box.textContent=lines.join("\n")
+
 }
 
-streamBox.textContent=lines.join("\n")
+/* PAYPAL BUTTON CREATOR */
+
+function plan(div,price,credits){
+
+paypal.Buttons({
+
+createOrder:function(data,actions){
+
+return actions.order.create({
+purchase_units:[{
+amount:{value:price}
+}]
+})
+
+},
+
+onApprove:function(data,actions){
+
+return actions.order.capture().then(async function(){
+
+await fetch(API+"/purchase",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+key:KEY,
+credits:credits
+})
+})
+
+alert(credits+" credits added")
+
+})
 
 }
+
+}).render(div)
+
+}
+
+plan("#plan1","10",1000)
+plan("#plan2","100",10000)
+plan("#plan3","1000",100000)
+plan("#plan4","10000",1000000)
 
 </script>
 
