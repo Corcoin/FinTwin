@@ -74,6 +74,13 @@ margin:5px 0;
 border-left:3px solid #49ffd2;
 }
 
+.plan{
+background:#111;
+padding:15px;
+margin:10px 0;
+border-left:4px solid #49ffd2;
+}
+
 </style>
 
 </head>
@@ -93,17 +100,41 @@ border-left:3px solid #49ffd2;
 
 <h2>Create API Key</h2>
 
-<button onclick="createKey()">Generate API Key (1 Free Call)</button>
+<button onclick="createKey()">Generate API Key</button>
 
 <pre id="key"></pre>
 
 <hr>
 
-<h2>Buy Credits</h2>
+<h2>Usage Dashboard</h2>
 
-<p>$10 = 1000 API Calls</p>
+<button onclick="dashboard()">Load Usage</button>
 
-<div id="paypal-button"></div>
+<pre id="dashboard"></pre>
+
+<hr>
+
+<h2>Buy API Credits</h2>
+
+<div class="plan">
+<b>$10</b> – 1,000 API Calls
+<div id="plan1"></div>
+</div>
+
+<div class="plan">
+<b>$100</b> – 10,000 API Calls
+<div id="plan2"></div>
+</div>
+
+<div class="plan">
+<b>$1,000</b> – 100,000 API Calls
+<div id="plan3"></div>
+</div>
+
+<div class="plan">
+<b>$10,000</b> – 1,000,000 API Calls
+<div id="plan4"></div>
+</div>
 
 <hr>
 
@@ -113,10 +144,8 @@ border-left:3px solid #49ffd2;
 <div class="endpoint">GET /api/bank</div>
 <div class="endpoint">GET /api/account</div>
 <div class="endpoint">GET /api/device</div>
-<div class="endpoint">GET /api/session</div>
 <div class="endpoint">GET /api/transaction</div>
 <div class="endpoint">GET /api/fraud-ring</div>
-<div class="endpoint">GET /api/aml-flow</div>
 
 <hr>
 
@@ -126,40 +155,36 @@ border-left:3px solid #49ffd2;
 <button onclick="callAPI('bank')">/api/bank</button>
 <button onclick="callAPI('account')">/api/account</button>
 <button onclick="callAPI('device')">/api/device</button>
-<button onclick="callAPI('session')">/api/session</button>
 <button onclick="callAPI('transaction')">/api/transaction</button>
 <button onclick="callAPI('fraud-ring')">/api/fraud-ring</button>
-<button onclick="callAPI('aml-flow')">/api/aml-flow</button>
 
 <pre id="result"></pre>
 
 <hr>
 
-<h2>curl Example</h2>
+<h2>Download Dataset</h2>
 
-<pre>
-curl -H "x-api-key: YOUR_KEY" \
-https://fintwin-neyi.onrender.com/api/transaction
-</pre>
+<button onclick="downloadDataset()">Download 10k Transactions</button>
 
 <hr>
 
-<h2>Python Example</h2>
+<h2>Bank Network Graph</h2>
 
-<pre>
-import requests
+<button onclick="network()">Load Network</button>
 
-r = requests.get(
-"https://fintwin-neyi.onrender.com/api/transaction",
-headers={"x-api-key":"YOUR_KEY"}
-)
-
-print(r.json())
-</pre>
+<pre id="network"></pre>
 
 <hr>
 
-<h2>JavaScript Example</h2>
+<h2>Fraud Ring Example</h2>
+
+<button onclick="fraud()">Generate Fraud Ring</button>
+
+<pre id="fraud"></pre>
+
+<hr>
+
+<h2>API Example (JavaScript)</h2>
 
 <pre>
 fetch("https://fintwin-neyi.onrender.com/api/transaction",{
@@ -172,7 +197,6 @@ headers:{
 </pre>
 
 </div>
-
 
 <div class="right">
 
@@ -190,7 +214,9 @@ const API="https://fintwin-neyi.onrender.com"
 
 let KEY=""
 
-/* CREATE API KEY */
+/* ======================
+CREATE API KEY
+====================== */
 
 async function createKey(){
 
@@ -204,7 +230,26 @@ JSON.stringify(data,null,2)
 
 }
 
-/* CALL API */
+/* ======================
+DASHBOARD
+====================== */
+
+async function dashboard(){
+
+const r=await fetch(API+"/dashboard",{
+headers:{ "x-api-key":KEY }
+})
+
+const data=await r.json()
+
+document.getElementById("dashboard").textContent=
+JSON.stringify(data,null,2)
+
+}
+
+/* ======================
+CALL API
+====================== */
 
 async function callAPI(endpoint){
 
@@ -224,23 +269,56 @@ JSON.stringify(data,null,2)
 
 }
 
-/* =========================
+/* ======================
+DATASET DOWNLOAD
+====================== */
+
+function downloadDataset(){
+
+window.open(API+"/download")
+
+}
+
+/* ======================
+NETWORK GRAPH
+====================== */
+
+async function network(){
+
+const r=await fetch(API+"/network")
+const data=await r.json()
+
+document.getElementById("network").textContent=
+JSON.stringify(data,null,2)
+
+}
+
+/* ======================
+FRAUD RING
+====================== */
+
+async function fraud(){
+
+const r=await fetch(API+"/api/fraud-ring",{
+headers:{ "x-api-key":KEY }
+})
+
+const data=await r.json()
+
+document.getElementById("fraud").textContent=
+JSON.stringify(data,null,2)
+
+}
+
+/* ======================
 LIVE STREAM
-========================= */
+====================== */
 
 const streamBox=document.getElementById("stream")
 
 const stream=new EventSource(API+"/stream")
 
 let lines=[]
-
-stream.onopen=function(){
-console.log("stream connected")
-}
-
-stream.onerror=function(){
-console.log("stream error")
-}
 
 stream.onmessage=function(e){
 
@@ -259,38 +337,51 @@ streamBox.textContent=lines.join("\n")
 
 }
 
-/* PAYPAL */
+/* ======================
+PAYPAL PLANS
+====================== */
+
+function plan(button,price,credits){
 
 paypal.Buttons({
 
 createOrder:function(data,actions){
+
 return actions.order.create({
 purchase_units:[{
-amount:{value:"10"}
+amount:{value:price}
 }]
 })
+
 },
 
 onApprove:function(data,actions){
 
-return actions.order.capture().then(async function(details){
+return actions.order.capture().then(async function(){
 
 await fetch(API+"/add-credits",{
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
 key:KEY,
-amount:1000
+amount:credits
 })
 })
 
-alert("Credits Added")
+alert(credits+" credits added")
 
 })
 
 }
 
-}).render("#paypal-button")
+}).render(button)
+
+}
+
+plan("#plan1","10",1000)
+plan("#plan2","100",10000)
+plan("#plan3","1000",100000)
+plan("#plan4","10000",1000000)
 
 </script>
 
