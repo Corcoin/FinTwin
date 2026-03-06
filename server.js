@@ -1,163 +1,129 @@
 import express from "express"
 import cors from "cors"
-import { v4 as uuidv4 } from "uuid"
+import crypto from "crypto"
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
 
-/* ===============================
-DATABASE (memory)
-=============================== */
+const PORT = process.env.PORT || 10000
 
-const users = {}
+/* DATABASE (IN MEMORY) */
 
-/* ===============================
-UTILS
-=============================== */
+const keys = {}
+
+/* RANDOM ENGINE */
 
 function rand(max){
 return Math.floor(Math.random()*max)
 }
 
-function pick(arr){
-return arr[rand(arr.length)]
+function token(prefix){
+return prefix+"_"+crypto.randomBytes(6).toString("hex")
 }
 
-function id(prefix){
-return prefix+"_"+Math.random().toString(36).substring(2,10)
-}
+const countries=["US","UK","DE","SG","BR"]
+const banks=["global_bank","retail_bank","metro_credit"]
+const devices=["ios","android","linux","windows"]
+const merchants=["retail","travel","gaming","crypto"]
 
-/* ===============================
-GENERATOR ENGINE
-=============================== */
+/* GENERATOR */
 
 function entity(){
+
 return{
-entity_id:id("ent"),
-country:pick(["US","UK","DE","SG","BR","AU"]),
-risk_profile:Math.random(),
-created:Date.now()
+
+entity_id:token("ent"),
+country:countries[rand(countries.length)],
+risk:Math.random(),
+customer_since:Date.now()-rand(1000000000)
+
 }
+
 }
 
 function account(){
+
 return{
-account_id:id("acct"),
-bank:pick(["retail_bank","global_bank","metro_bank"]),
-currency:pick(["USD","EUR","GBP"]),
+
+account_id:token("acct"),
+bank:banks[rand(banks.length)],
+currency:"USD",
 balance:rand(200000)
+
 }
+
 }
 
 function device(){
+
 return{
-device_id:id("dev"),
-os:pick(["ios","android","windows","linux","mac"]),
-fingerprint:id("fp"),
+
+device_id:token("dev"),
+os:devices[rand(devices.length)],
 trust_score:Math.random()
-}
+
 }
 
-function session(){
-return{
-session_id:id("ses"),
-device_id:id("dev"),
-login_time:Date.now(),
-duration:rand(4000)
-}
 }
 
 function merchant(){
+
 return{
-merchant_id:id("mer"),
-category:pick(["retail","travel","gaming","crypto","electronics"]),
-country:pick(["US","UK","DE"])
+
+merchant_id:token("mer"),
+category:merchants[rand(merchants.length)],
+risk_level:Math.random()
+
 }
+
 }
 
 function transaction(){
+
 return{
-tx_id:id("tx"),
-account_id:id("acct"),
+
+tx_id:token("tx"),
+account_id:token("acct"),
 merchant:merchant(),
-amount:rand(5000),
-currency:"USD",
-channel:pick(["card","online","wire","crypto"]),
-timestamp:Date.now()
-}
-}
+amount:rand(3000),
+timestamp:Date.now(),
+channel:["card","wire","crypto","online"][rand(4)]
 
-function fraudRing(){
-let members=[]
-for(let i=0;i<5;i++){
-members.push(id("ent"))
-}
-
-return{
-ring_id:id("ring"),
-members,
-coordination_score:Math.random()
-}
-}
-
-function amlFlow(){
-
-let nodes=[]
-let edges=[]
-
-for(let i=0;i<6;i++){
-nodes.push(id("acct"))
-}
-
-for(let i=0;i<7;i++){
-
-edges.push({
-from:pick(nodes),
-to:pick(nodes),
-amount:rand(9000)
-})
-
-}
-
-return{
-flow_id:id("aml"),
-nodes,
-edges
 }
 
 }
 
 function universe(){
 
-let tx=transaction()
+const tx=transaction()
 
 return{
+
 entity:entity(),
 account:account(),
 device:device(),
-session:session(),
 transaction:tx,
-fraud_ring:fraudRing(),
-aml_flow:amlFlow(),
-generated:Date.now()
+risk_score:Math.random(),
+metadata:{
+engine:"synthetic-financial-universe",
+version:"1.0"
 }
 
 }
 
-/* ===============================
-API KEY
-=============================== */
+}
+
+/* API KEY SYSTEM */
 
 app.post("/create-key",(req,res)=>{
 
-const key="sk_"+uuidv4()
+const key="sf_"+crypto.randomBytes(12).toString("hex")
 
-users[key]={
+keys[key]={
 
-credits:1,
-calls:0
+credits:1
 
 }
 
@@ -170,108 +136,73 @@ free_calls:1
 
 })
 
-/* ===============================
-PAYMENT CREDIT
-=============================== */
+/* ADD CREDITS */
 
 app.post("/add-credits",(req,res)=>{
 
 const {key,amount}=req.body
 
-if(!users[key]) return res.status(400).send("invalid key")
+if(!keys[key]){
 
-const credits=amount*100
+return res.status(401).json({error:"invalid key"})
 
-users[key].credits+=credits
+}
 
-res.json({
+keys[key].credits+=amount
 
-message:"credits added",
-credits:users[key].credits
-
-})
+res.json({credits:keys[key].credits})
 
 })
 
-/* ===============================
-AUTH
-=============================== */
+/* AUTH */
 
 function auth(req,res,next){
 
-const key=req.headers["x-api-key"] || req.query.key
+const key=req.headers["x-api-key"]
 
-if(!key || !users[key])
-return res.status(401).send("invalid api key")
+if(!keys[key]){
 
-if(users[key].credits<=0)
-return res.status(402).send("no credits")
+return res.status(401).json({error:"invalid key"})
 
-users[key].credits--
-users[key].calls++
+}
+
+if(keys[key].credits<=0){
+
+return res.status(403).json({error:"no credits"})
+
+}
+
+keys[key].credits--
 
 next()
 
 }
 
-/* ===============================
-API ENDPOINTS
-=============================== */
-
-app.get("/api/entity",auth,(req,res)=>{
-res.json(entity())
-})
-
-app.get("/api/account",auth,(req,res)=>{
-res.json(account())
-})
-
-app.get("/api/transaction",auth,(req,res)=>{
-res.json(transaction())
-})
-
-app.get("/api/fraud",auth,(req,res)=>{
-res.json(fraudRing())
-})
-
-app.get("/api/aml",auth,(req,res)=>{
-res.json(amlFlow())
-})
+/* API */
 
 app.get("/api/universe",auth,(req,res)=>{
+
 res.json(universe())
+
 })
 
-/* ===============================
-FIREHOSE STREAM
-=============================== */
+/* STREAM */
 
-app.get("/api/firehose",auth,(req,res)=>{
+app.get("/stream",auth,(req,res)=>{
 
 res.setHeader("Content-Type","text/event-stream")
 res.setHeader("Cache-Control","no-cache")
-res.setHeader("Connection","keep-alive")
 
-const interval=setInterval(()=>{
+setInterval(()=>{
 
-const data=universe()
+res.write(`data: ${JSON.stringify(universe())}\n\n`)
 
-res.write(`data: ${JSON.stringify(data)}\n\n`)
-
-},500)
-
-req.on("close",()=>{
-clearInterval(interval)
-})
+},1000)
 
 })
-
-/* ===============================
-SERVER
-=============================== */
-
-const PORT=process.env.PORT || 4000
 
 app.listen(PORT,()=>{
-console.log("API running on port "+PORT)
+
+console.log("API running")
+
 })
