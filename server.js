@@ -8,6 +8,7 @@ const app = express()
 
 app.use(cors())
 app.use(express.json())
+app.use(express.static(__dirname))
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
