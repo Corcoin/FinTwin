@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Synthetic Financial Universe API</title>
+
+<script src="https://www.paypal.com/sdk/js?client-id=ATRqtzWJiEgWzPMxEn3MuBmbvv_JaiCvJHFriOkE3bXsAkBwzytltfTyXUy6NL_5hCor4eBoZu6S2FBX"></script>
+
+<style>
+
+body{
+background:#0b0f14;
+color:#d7fff3;
+font-family:monospace;
+padding:40px
+}
+
+button{
+padding:10px
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Synthetic Financial Universe API</h1>
+
+<p>Enterprise Synthetic Finance Dataset Generator</p>
+
+<button onclick="createKey()">Get API Key (1 Free Call)</button>
+
+<pre id="key"></pre>
+
+<h2>Buy Credits</h2>
+
+<div id="paypal-button"></div>
+
+<h2>Example API Call</h2>
+
+<pre>
+
+curl -H "x-api-key: YOUR_KEY" \
+https://fintwin-neyi.onrender.com/api/universe
+
+</pre>
+
+<script>
+
+const API="https://fintwin-neyi.onrender.com"
+
+let API_KEY=""
+
+/* CREATE KEY */
+
+async function createKey(){
+
+const r=await fetch(API+"/create-key",{method:"POST"})
+
+const data=await r.json()
+
+API_KEY=data.api_key
+
+document.getElementById("key").textContent=JSON.stringify(data,null,2)
+
+}
+
+/* PAYPAL */
+
+paypal.Buttons({
+
+createOrder:function(data,actions){
+
+return actions.order.create({
+
+purchase_units:[{
+
+amount:{value:"10"}
+
+}]
+
+})
+
+},
+
+onApprove:function(data,actions){
+
+return actions.order.capture().then(async function(details){
+
+await fetch(API+"/add-credits",{
+
+method:"POST",
+
+headers:{
+
+"Content-Type":"application/json"
+
+},
+
+body:JSON.stringify({
+
+key:API_KEY,
+amount:10
+
+})
+
+})
+
+alert("Credits added")
+
+})
+
+}
+
+}).render("#paypal-button")
+
+</script>
+
+</body>
+</html>
