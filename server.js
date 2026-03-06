@@ -9,10 +9,6 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-/* ===============================
-PATH FIX
-================================ */
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -20,7 +16,7 @@ const __dirname = path.dirname(__filename)
 SERVE INDEX
 ================================ */
 
-app.get("/",(req,res)=>{
+app.get("/", (req,res)=>{
 res.sendFile(path.join(__dirname,"index.html"))
 })
 
@@ -32,7 +28,7 @@ const users={}
 const rateLimits={}
 
 /* ===============================
-RANDOM ENGINE
+UTILS
 ================================ */
 
 function rand(max=1){
@@ -101,37 +97,22 @@ score:rand()
 }
 }
 
-/* ===============================
-POOLS
-================================ */
-
-const pools={
-entity:[],
-bank:[],
-account:[],
-device:[],
-transaction:[],
-fraud:[]
+function amlFlow(){
+return{
+flow_id:id("aml"),
+risk_score:rand(),
+path:[id("acct"),id("acct"),id("acct")]
+}
 }
 
-function refill(){
-
-for(let i=0;i<5000;i++){
-pools.entity.push(entity())
-pools.bank.push(bank())
-pools.account.push(account())
-pools.device.push(device())
-pools.transaction.push(transaction())
-pools.fraud.push(fraudRing())
+function session(){
+return{
+session_id:id("sess"),
+device:devices[Math.floor(rand(devices.length))],
+ip:`192.168.${Math.floor(rand(255))}.${Math.floor(rand(255))}`,
+timestamp:Date.now()
 }
-
 }
-
-refill()
-
-setInterval(()=>{
-if(pools.entity.length<1000) refill()
-},2000)
 
 /* ===============================
 AUTH
@@ -153,7 +134,6 @@ users[key].credits--
 users[key].calls++
 
 next()
-
 }
 
 /* ===============================
@@ -169,7 +149,7 @@ rateLimits[key]={count:0,time:Date.now()}
 }
 
 const window=1000
-const limit=50
+const limit=500
 
 if(Date.now()-rateLimits[key].time>window){
 rateLimits[key].count=0
@@ -179,11 +159,10 @@ rateLimits[key].time=Date.now()
 rateLimits[key].count++
 
 if(rateLimits[key].count>limit){
-return res.status(429).json({error:"rate limit exceeded"})
+return res.status(429).json({error:"rate limit"})
 }
 
 next()
-
 }
 
 /* ===============================
@@ -195,13 +174,13 @@ app.post("/create-key",(req,res)=>{
 const key="sf_"+crypto.randomBytes(8).toString("hex")
 
 users[key]={
-credits:1,
+credits:100000,
 calls:0
 }
 
 res.json({
 api_key:key,
-credits:1
+credits:100000
 })
 
 })
@@ -240,57 +219,14 @@ res.json(users[key])
 API ROUTES
 ================================ */
 
-app.get("/api/entity",auth,rateLimit,(req,res)=>res.json(pools.entity.pop()))
-app.get("/api/bank",auth,rateLimit,(req,res)=>res.json(pools.bank.pop()))
-app.get("/api/account",auth,rateLimit,(req,res)=>res.json(pools.account.pop()))
-app.get("/api/device",auth,rateLimit,(req,res)=>res.json(pools.device.pop()))
-app.get("/api/transaction",auth,rateLimit,(req,res)=>res.json(pools.transaction.pop()))
-app.get("/api/fraud-ring",auth,rateLimit,(req,res)=>res.json(pools.fraud.pop()))
-
-/* ===============================
-DATASET DOWNLOAD
-================================ */
-
-app.get("/download",(req,res)=>{
-
-let data=[]
-
-for(let i=0;i<10000;i++){
-data.push(transaction())
-}
-
-res.setHeader("Content-Disposition","attachment; filename=dataset.json")
-
-res.json(data)
-
-})
-
-/* ===============================
-NETWORK GRAPH
-================================ */
-
-app.get("/network",(req,res)=>{
-
-const nodes=[]
-const edges=[]
-
-for(let i=0;i<10;i++){
-nodes.push(bank())
-}
-
-for(let i=0;i<20;i++){
-
-edges.push({
-from:nodes[Math.floor(rand(nodes.length))].bank_id,
-to:nodes[Math.floor(rand(nodes.length))].bank_id,
-amount:Math.floor(rand(100000))
-})
-
-}
-
-res.json({nodes,edges})
-
-})
+app.get("/api/entity",auth,rateLimit,(req,res)=>res.json(entity()))
+app.get("/api/bank",auth,rateLimit,(req,res)=>res.json(bank()))
+app.get("/api/account",auth,rateLimit,(req,res)=>res.json(account()))
+app.get("/api/device",auth,rateLimit,(req,res)=>res.json(device()))
+app.get("/api/transaction",auth,rateLimit,(req,res)=>res.json(transaction()))
+app.get("/api/fraud-ring",auth,rateLimit,(req,res)=>res.json(fraudRing()))
+app.get("/api/aml-flow",auth,rateLimit,(req,res)=>res.json(amlFlow()))
+app.get("/api/session",auth,rateLimit,(req,res)=>res.json(session()))
 
 /* ===============================
 STREAM
@@ -305,17 +241,22 @@ res.setHeader("Connection","keep-alive")
 const interval=setInterval(()=>{
 
 const data={
-entity:pools.entity.pop(),
-account:pools.account.pop(),
-transaction:pools.transaction.pop()
+entity:entity(),
+account:account(),
+transaction:transaction()
 }
 
 res.write(`data: ${JSON.stringify(data)}\n\n`)
 
 },1000)
 
+const heartbeat=setInterval(()=>{
+res.write(": ping\n\n")
+},15000)
+
 req.on("close",()=>{
 clearInterval(interval)
+clearInterval(heartbeat)
 })
 
 })
@@ -327,5 +268,5 @@ SERVER
 const PORT=process.env.PORT || 3000
 
 app.listen(PORT,()=>{
-console.log("API running on port "+PORT)
+console.log("API running on "+PORT)
 })
