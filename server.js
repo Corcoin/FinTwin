@@ -10,14 +10,14 @@ app.use(cors())
 app.use(express.json())
 
 /* ===============================
-   PATH FIX FOR ES MODULES
+PATH FIX
 ================================ */
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 /* ===============================
-   SERVE INDEX.HTML FROM ROOT
+SERVE INDEX
 ================================ */
 
 app.get("/",(req,res)=>{
@@ -25,13 +25,14 @@ res.sendFile(path.join(__dirname,"index.html"))
 })
 
 /* ===============================
-   API KEY DATABASE (memory)
+DATABASE
 ================================ */
 
-const users = {}
+const users={}
+const rateLimits={}
 
 /* ===============================
-   RANDOM ENGINE
+RANDOM ENGINE
 ================================ */
 
 function rand(max=1){
@@ -47,7 +48,7 @@ const devices=["ios","android","windows","linux"]
 const banks=["global_bank","metro_credit","retail_bank"]
 
 /* ===============================
-   GENERATORS
+GENERATORS
 ================================ */
 
 function entity(){
@@ -82,14 +83,6 @@ trust_score:rand()
 }
 }
 
-function session(){
-return{
-session_id:id("ses"),
-device_id:id("dev"),
-login_time:Date.now()
-}
-}
-
 function transaction(){
 return{
 tx_id:id("tx"),
@@ -108,23 +101,8 @@ score:rand()
 }
 }
 
-function amlFlow(){
-
-const nodes=[id("acct"),id("acct"),id("acct")]
-
-return{
-flow_id:id("aml"),
-nodes,
-edges:[
-{from:nodes[0],to:nodes[1],amount:rand(9000)},
-{from:nodes[1],to:nodes[2],amount:rand(9000)}
-]
-}
-
-}
-
 /* ===============================
-   MEMORY POOLS
+POOLS
 ================================ */
 
 const pools={
@@ -132,25 +110,19 @@ entity:[],
 bank:[],
 account:[],
 device:[],
-session:[],
 transaction:[],
-fraud:[],
-aml:[]
+fraud:[]
 }
 
 function refill(){
 
 for(let i=0;i<5000;i++){
-
 pools.entity.push(entity())
 pools.bank.push(bank())
 pools.account.push(account())
 pools.device.push(device())
-pools.session.push(session())
 pools.transaction.push(transaction())
 pools.fraud.push(fraudRing())
-pools.aml.push(amlFlow())
-
 }
 
 }
@@ -162,7 +134,7 @@ if(pools.entity.length<1000) refill()
 },2000)
 
 /* ===============================
-   AUTH
+AUTH
 ================================ */
 
 function auth(req,res,next){
@@ -177,31 +149,65 @@ if(users[key].credits<=0){
 return res.status(402).json({error:"no credits"})
 }
 
-users[key].credits-=1
+users[key].credits--
+users[key].calls++
 
 next()
+
 }
 
 /* ===============================
-   KEY CREATION
+RATE LIMIT
+================================ */
+
+function rateLimit(req,res,next){
+
+const key=req.headers["x-api-key"]
+
+if(!rateLimits[key]){
+rateLimits[key]={count:0,time:Date.now()}
+}
+
+const window=1000
+const limit=50
+
+if(Date.now()-rateLimits[key].time>window){
+rateLimits[key].count=0
+rateLimits[key].time=Date.now()
+}
+
+rateLimits[key].count++
+
+if(rateLimits[key].count>limit){
+return res.status(429).json({error:"rate limit exceeded"})
+}
+
+next()
+
+}
+
+/* ===============================
+CREATE KEY
 ================================ */
 
 app.post("/create-key",(req,res)=>{
 
 const key="sf_"+crypto.randomBytes(8).toString("hex")
 
-users[key]={credits:1}
+users[key]={
+credits:1,
+calls:0
+}
 
 res.json({
 api_key:key,
-free_calls:1,
-price_per_call:"$0.01"
+credits:1
 })
 
 })
 
 /* ===============================
-   ADD CREDITS
+ADD CREDITS
 ================================ */
 
 app.post("/add-credits",(req,res)=>{
@@ -217,20 +223,77 @@ res.json({credits:users[key].credits})
 })
 
 /* ===============================
-   API ROUTES
+DASHBOARD
 ================================ */
 
-app.get("/api/entity",auth,(req,res)=>res.json(pools.entity.pop()))
-app.get("/api/bank",auth,(req,res)=>res.json(pools.bank.pop()))
-app.get("/api/account",auth,(req,res)=>res.json(pools.account.pop()))
-app.get("/api/device",auth,(req,res)=>res.json(pools.device.pop()))
-app.get("/api/session",auth,(req,res)=>res.json(pools.session.pop()))
-app.get("/api/transaction",auth,(req,res)=>res.json(pools.transaction.pop()))
-app.get("/api/fraud-ring",auth,(req,res)=>res.json(pools.fraud.pop()))
-app.get("/api/aml-flow",auth,(req,res)=>res.json(pools.aml.pop()))
+app.get("/dashboard",(req,res)=>{
+
+const key=req.headers["x-api-key"]
+
+if(!users[key]) return res.json({error:"invalid key"})
+
+res.json(users[key])
+
+})
 
 /* ===============================
-   LIVE STREAM
+API ROUTES
+================================ */
+
+app.get("/api/entity",auth,rateLimit,(req,res)=>res.json(pools.entity.pop()))
+app.get("/api/bank",auth,rateLimit,(req,res)=>res.json(pools.bank.pop()))
+app.get("/api/account",auth,rateLimit,(req,res)=>res.json(pools.account.pop()))
+app.get("/api/device",auth,rateLimit,(req,res)=>res.json(pools.device.pop()))
+app.get("/api/transaction",auth,rateLimit,(req,res)=>res.json(pools.transaction.pop()))
+app.get("/api/fraud-ring",auth,rateLimit,(req,res)=>res.json(pools.fraud.pop()))
+
+/* ===============================
+DATASET DOWNLOAD
+================================ */
+
+app.get("/download",(req,res)=>{
+
+let data=[]
+
+for(let i=0;i<10000;i++){
+data.push(transaction())
+}
+
+res.setHeader("Content-Disposition","attachment; filename=dataset.json")
+
+res.json(data)
+
+})
+
+/* ===============================
+NETWORK GRAPH
+================================ */
+
+app.get("/network",(req,res)=>{
+
+const nodes=[]
+const edges=[]
+
+for(let i=0;i<10;i++){
+nodes.push(bank())
+}
+
+for(let i=0;i<20;i++){
+
+edges.push({
+from:nodes[Math.floor(rand(nodes.length))].bank_id,
+to:nodes[Math.floor(rand(nodes.length))].bank_id,
+amount:Math.floor(rand(100000))
+})
+
+}
+
+res.json({nodes,edges})
+
+})
+
+/* ===============================
+STREAM
 ================================ */
 
 app.get("/stream",(req,res)=>{
@@ -238,16 +301,12 @@ app.get("/stream",(req,res)=>{
 res.setHeader("Content-Type","text/event-stream")
 res.setHeader("Cache-Control","no-cache")
 res.setHeader("Connection","keep-alive")
-res.setHeader("Access-Control-Allow-Origin","*")
-
-res.flushHeaders()
 
 const interval=setInterval(()=>{
 
 const data={
 entity:pools.entity.pop(),
 account:pools.account.pop(),
-device:pools.device.pop(),
 transaction:pools.transaction.pop()
 }
 
@@ -262,7 +321,7 @@ clearInterval(interval)
 })
 
 /* ===============================
-   SERVER
+SERVER
 ================================ */
 
 const PORT=process.env.PORT || 3000
