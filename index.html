@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <meta charset="UTF-8">
+
 <title>Synthetic Financial Universe API</title>
 
 <script src="https://www.paypal.com/sdk/js?client-id=ATRqtzWJiEgWzPMxEn3MuBmbvv_JaiCvJHFriOkE3bXsAkBwzytltfTyXUy6NL_5hCor4eBoZu6S2FBX"></script>
@@ -14,46 +16,43 @@ background:#0b0f14;
 color:#d7fff3;
 font-family:monospace;
 padding:40px;
+max-width:1200px;
+margin:auto;
 }
 
 h1{
 color:#49ffd2;
 }
 
-.panel{
-background:#121923;
-padding:20px;
-margin-bottom:25px;
-border-left:4px solid #49ffd2;
-}
-
 button{
 padding:10px;
+margin:6px;
 background:#49ffd2;
 border:none;
 cursor:pointer;
-margin:5px;
+}
+
+button:hover{
+opacity:0.8;
 }
 
 pre{
 background:#020304;
-padding:15px;
-overflow:auto;
-}
-
-#stream{
-height:350px;
-overflow:auto;
-background:#000;
-padding:10px;
+padding:20px;
 border:1px solid #1b2c30;
+overflow:auto;
 }
 
 .endpoint{
 background:#111;
 padding:10px;
-margin:6px 0;
+margin:5px 0;
 border-left:3px solid #49ffd2;
+}
+
+#stream{
+height:350px;
+overflow:auto;
 }
 
 </style>
@@ -66,127 +65,105 @@ border-left:3px solid #49ffd2;
 
 <p>Enterprise Synthetic Finance Dataset Generator</p>
 
+<p><b>Price:</b> $0.01 per API call</p>
 
-<div class="panel">
+<hr>
 
 <h2>Create API Key</h2>
 
-<button onclick="createKey()">Get API Key (1 Free Call)</button>
+<button onclick="createKey()">Generate API Key (1 Free Call)</button>
 
 <pre id="key"></pre>
 
-</div>
-
-
-<div class="panel">
+<hr>
 
 <h2>Buy Credits</h2>
 
-<p>$10 = 10 API Calls</p>
+<p>$10 = 1000 API Calls</p>
 
 <div id="paypal-button"></div>
 
-</div>
+<hr>
 
+<h2>Available APIs</h2>
 
-<div class="panel">
+<div class="endpoint">GET /api/entity</div>
+<div class="endpoint">GET /api/bank</div>
+<div class="endpoint">GET /api/account</div>
+<div class="endpoint">GET /api/device</div>
+<div class="endpoint">GET /api/session</div>
+<div class="endpoint">GET /api/transaction</div>
+<div class="endpoint">GET /api/fraud-ring</div>
+<div class="endpoint">GET /api/aml-flow</div>
 
-<h2>Endpoints</h2>
+<hr>
 
-<div class="endpoint">GET /api/universe</div>
-<div class="endpoint">GET /stream</div>
+<h2>API Playground</h2>
 
-</div>
-
-
-<div class="panel">
-
-<h2>Test API Call</h2>
-
-<button onclick="testCall()">Run Test</button>
+<button onclick="callAPI('entity')">/api/entity</button>
+<button onclick="callAPI('bank')">/api/bank</button>
+<button onclick="callAPI('account')">/api/account</button>
+<button onclick="callAPI('device')">/api/device</button>
+<button onclick="callAPI('session')">/api/session</button>
+<button onclick="callAPI('transaction')">/api/transaction</button>
+<button onclick="callAPI('fraud-ring')">/api/fraud-ring</button>
+<button onclick="callAPI('aml-flow')">/api/aml-flow</button>
 
 <pre id="result"></pre>
 
-</div>
+<hr>
 
+<h2>Live Financial Stream</h2>
 
-<div class="panel">
+<pre id="stream"></pre>
 
-<h2>Live Firehose Stream</h2>
-
-<button onclick="startStream()">Start Stream</button>
-<button onclick="stopStream()">Stop</button>
-
-<div id="stream"></div>
-
-</div>
-
-
-<div class="panel">
+<hr>
 
 <h2>curl Example</h2>
 
 <pre>
-
 curl -H "x-api-key: YOUR_KEY" \
-https://fintwin-neyi.onrender.com/api/universe
-
+https://fintwin-neyi.onrender.com/api/transaction
 </pre>
 
-</div>
+<hr>
 
+<h2>Python Example</h2>
 
-<div class="panel">
+<pre>
+import requests
+
+r = requests.get(
+"https://fintwin-neyi.onrender.com/api/transaction",
+headers={"x-api-key":"YOUR_KEY"}
+)
+
+print(r.json())
+</pre>
+
+<hr>
 
 <h2>JavaScript Example</h2>
 
 <pre>
-
-fetch("https://fintwin-neyi.onrender.com/api/universe",{
+fetch("https://fintwin-neyi.onrender.com/api/transaction",{
 headers:{
 "x-api-key":"YOUR_KEY"
 }
 })
 .then(r=>r.json())
-.then(data=>console.log(data))
-
+.then(console.log)
 </pre>
 
-</div>
-
-
-<div class="panel">
-
-<h2>Python Example</h2>
-
-<pre>
-
-import requests
-
-url="https://fintwin-neyi.onrender.com/api/universe"
-
-headers={
-"x-api-key":"YOUR_KEY"
-}
-
-r=requests.get(url,headers=headers)
-
-print(r.json())
-
-</pre>
-
-</div>
-
+<hr>
 
 <script>
 
 const API="https://fintwin-neyi.onrender.com"
 
-let API_KEY=""
-let streamConnection=null
+let KEY=""
 
-
-/* CREATE KEY */
+/* CREATE API KEY */
 
 async function createKey(){
 
@@ -194,18 +171,18 @@ const r=await fetch(API+"/create-key",{method:"POST"})
 
 const data=await r.json()
 
-API_KEY=data.api_key
+KEY=data.api_key
 
-document.getElementById("key").textContent=JSON.stringify(data,null,2)
+document.getElementById("key").textContent=
+JSON.stringify(data,null,2)
 
 }
 
+/* CALL API */
 
-/* TEST API */
+async function callAPI(endpoint){
 
-async function testCall(){
-
-if(!API_KEY){
+if(!KEY){
 
 alert("Create API key first")
 
@@ -213,14 +190,10 @@ return
 
 }
 
-const r=await fetch(API+"/api/universe",{
-
+const r=await fetch(API+"/api/"+endpoint,{
 headers:{
-
-"x-api-key":API_KEY
-
+"x-api-key":KEY
 }
-
 })
 
 const data=await r.json()
@@ -230,45 +203,18 @@ JSON.stringify(data,null,2)
 
 }
 
+/* LIVE STREAM */
 
-/* STREAM */
+const streamBox=document.getElementById("stream")
 
-function startStream(){
+const stream=new EventSource(API+"/stream")
 
-if(!API_KEY){
+stream.onmessage=function(e){
 
-alert("Create API key first")
-
-return
-
-}
-
-const stream=document.getElementById("stream")
-
-streamConnection=new EventSource(API+"/stream?key="+API_KEY)
-
-streamConnection.onmessage=function(e){
-
-const line=document.createElement("pre")
-
-line.textContent=e.data
-
-stream.prepend(line)
+streamBox.textContent=
+e.data+"\n\n"+streamBox.textContent
 
 }
-
-}
-
-function stopStream(){
-
-if(streamConnection){
-
-streamConnection.close()
-
-}
-
-}
-
 
 /* PAYPAL */
 
@@ -297,21 +243,17 @@ await fetch(API+"/add-credits",{
 method:"POST",
 
 headers:{
-
 "Content-Type":"application/json"
-
 },
 
 body:JSON.stringify({
-
-key:API_KEY,
-amount:10
-
+key:KEY,
+amount:1000
 })
 
 })
 
-alert("Credits added")
+alert("Credits Added")
 
 })
 
@@ -322,4 +264,5 @@ alert("Credits added")
 </script>
 
 </body>
+
 </html>
