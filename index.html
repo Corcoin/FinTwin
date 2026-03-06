@@ -4,7 +4,6 @@
 <head>
 
 <meta charset="UTF-8">
-
 <title>Synthetic Financial Universe API</title>
 
 <script src="https://www.paypal.com/sdk/js?client-id=ATRqtzWJiEgWzPMxEn3MuBmbvv_JaiCvJHFriOkE3bXsAkBwzytltfTyXUy6NL_5hCor4eBoZu6S2FBX"></script>
@@ -50,6 +49,17 @@ border:none;
 cursor:pointer;
 }
 
+button:hover{
+opacity:0.85;
+}
+
+pre{
+background:#020304;
+padding:20px;
+border:1px solid #1b2c30;
+overflow:auto;
+}
+
 .endpoint{
 background:#111;
 padding:10px;
@@ -64,6 +74,10 @@ margin:10px 0;
 border-left:4px solid #49ffd2;
 }
 
+h1{
+color:#49ffd2;
+}
+
 </style>
 
 </head>
@@ -76,7 +90,8 @@ border-left:4px solid #49ffd2;
 
 <h1>Synthetic Financial Universe API</h1>
 
-<p>$0.01 per API call</p>
+<p>Enterprise Synthetic Financial Dataset Generator</p>
+<p><b>$0.01 per API call</b></p>
 
 <hr>
 
@@ -88,59 +103,69 @@ border-left:4px solid #49ffd2;
 
 <hr>
 
+<h2>Usage Dashboard</h2>
+
+<button onclick="dashboard()">Load Usage</button>
+
+<pre id="dashboard"></pre>
+
+<hr>
+
 <h2>Buy Credits</h2>
 
 <div class="plan">
-
-<b>$10 — 1,000 calls</b>
-
+<b>$10 — 1,000 API Calls</b>
 <div id="plan1"></div>
-
 </div>
 
 <div class="plan">
-
-<b>$100 — 10,000 calls</b>
-
+<b>$100 — 10,000 API Calls</b>
 <div id="plan2"></div>
-
 </div>
 
 <div class="plan">
-
-<b>$1,000 — 100,000 calls</b>
-
+<b>$1,000 — 100,000 API Calls</b>
 <div id="plan3"></div>
-
 </div>
 
 <div class="plan">
-
-<b>$10,000 — 1,000,000 calls</b>
-
+<b>$10,000 — 1,000,000 API Calls</b>
 <div id="plan4"></div>
-
 </div>
 
 <hr>
 
-<h2>APIs</h2>
+<h2>Available APIs</h2>
 
-<div class="endpoint">/api/entity</div>
-<div class="endpoint">/api/account</div>
-<div class="endpoint">/api/device</div>
-<div class="endpoint">/api/transaction</div>
-<div class="endpoint">/api/fraud-ring</div>
-<div class="endpoint">/api/aml-flow</div>
-<div class="endpoint">/api/bank</div>
-<div class="endpoint">/api/session</div>
+<div class="endpoint">GET /api/entity</div>
+<div class="endpoint">GET /api/account</div>
+<div class="endpoint">GET /api/device</div>
+<div class="endpoint">GET /api/session</div>
+<div class="endpoint">GET /api/transaction</div>
+<div class="endpoint">GET /api/fraud-ring</div>
+<div class="endpoint">GET /api/aml-flow</div>
+<div class="endpoint">GET /api/bank</div>
 
 <hr>
-  <hr>
 
-<h2>How to Use the API</h2>
+<h2>API Playground</h2>
 
-<p>All requests require your API key in the header:</p>
+<button onclick="callAPI('entity')">entity</button>
+<button onclick="callAPI('account')">account</button>
+<button onclick="callAPI('device')">device</button>
+<button onclick="callAPI('session')">session</button>
+<button onclick="callAPI('transaction')">transaction</button>
+<button onclick="callAPI('fraud-ring')">fraud-ring</button>
+<button onclick="callAPI('aml-flow')">aml-flow</button>
+<button onclick="callAPI('bank')">bank</button>
+
+<pre id="result"></pre>
+
+<hr>
+
+<h2>How To Use The API</h2>
+
+<p>All requests must include your API key in the header.</p>
 
 <pre>
 x-api-key: YOUR_API_KEY
@@ -148,10 +173,10 @@ x-api-key: YOUR_API_KEY
 
 <hr>
 
-<h3>JavaScript (Node / Browser)</h3>
+<h3>JavaScript</h3>
 
 <pre>
-fetch(API+"/api/transaction",{
+fetch("https://YOUR_DOMAIN/api/transaction",{
 headers:{
 "x-api-key":"YOUR_API_KEY"
 }
@@ -173,9 +198,9 @@ headers = {
 "x-api-key":"YOUR_API_KEY"
 }
 
-response = requests.get(url,headers=headers)
+r = requests.get(url,headers=headers)
 
-print(response.json())
+print(r.json())
 </pre>
 
 <hr>
@@ -257,9 +282,11 @@ CURL *curl = curl_easy_init();
 
 if(curl){
 
-curl_easy_setopt(curl,
+curl_easy_setopt(
+curl,
 CURLOPT_URL,
-"https://YOUR_DOMAIN/api/transaction");
+"https://YOUR_DOMAIN/api/transaction"
+);
 
 struct curl_slist *headers = NULL;
 
@@ -268,9 +295,11 @@ headers,
 "x-api-key: YOUR_API_KEY"
 );
 
-curl_easy_setopt(curl,
+curl_easy_setopt(
+curl,
 CURLOPT_HTTPHEADER,
-headers);
+headers
+);
 
 curl_easy_perform(curl);
 
@@ -281,26 +310,13 @@ curl_easy_cleanup(curl);
 }
 </pre>
 
-<h2>Playground</h2>
-
-<button onclick="callAPI('entity')">entity</button>
-<button onclick="callAPI('account')">account</button>
-<button onclick="callAPI('device')">device</button>
-<button onclick="callAPI('transaction')">transaction</button>
-<button onclick="callAPI('fraud-ring')">fraud-ring</button>
-<button onclick="callAPI('aml-flow')">aml-flow</button>
-<button onclick="callAPI('bank')">bank</button>
-<button onclick="callAPI('session')">session</button>
-
-<pre id="result"></pre>
-
 </div>
 
 <div class="right">
 
 <h2>Live Financial Stream</h2>
 
-<pre id="stream"></pre>
+<pre id="stream">Connecting...</pre>
 
 </div>
 
@@ -312,25 +328,25 @@ const API = window.location.origin
 
 let KEY=""
 
-/* API KEY */
+/* CREATE API KEY */
 
 async function createKey(){
 
 const r = await fetch(API+"/create-key",{method:"POST"})
-
 const d = await r.json()
 
-KEY=d.api_key
+KEY = d.api_key
 
-document.getElementById("key").textContent=KEY
+document.getElementById("key").textContent =
+JSON.stringify(d,null,2)
 
 }
 
-/* API CALL */
+/* DASHBOARD */
 
-async function callAPI(e){
+async function dashboard(){
 
-const r = await fetch(API+"/api/"+e,{
+const r = await fetch(API+"/dashboard",{
 headers:{
 "x-api-key":KEY
 }
@@ -338,7 +354,29 @@ headers:{
 
 const d = await r.json()
 
-document.getElementById("result").textContent=
+document.getElementById("dashboard").textContent =
+JSON.stringify(d,null,2)
+
+}
+
+/* CALL API */
+
+async function callAPI(endpoint){
+
+if(!KEY){
+alert("Create API key first")
+return
+}
+
+const r = await fetch(API+"/api/"+endpoint,{
+headers:{
+"x-api-key":KEY
+}
+})
+
+const d = await r.json()
+
+document.getElementById("result").textContent =
 JSON.stringify(d,null,2)
 
 }
@@ -358,11 +396,11 @@ lines.unshift(e.data)
 if(lines.length>30)
 lines.pop()
 
-box.textContent=lines.join("\n")
+box.textContent = lines.join("\n")
 
 }
 
-/* PAYPAL BUTTON CREATOR */
+/* PAYPAL */
 
 function plan(div,price,credits){
 
