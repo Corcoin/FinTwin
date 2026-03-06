@@ -1,15 +1,12 @@
 {
-  "name": "axiomvault-api",
+  "name": "synthetic-finance-api",
   "version": "1.0.0",
-  "description": "Synthetic financial data API",
   "type": "module",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
   "dependencies": {
+    "express": "^4.19.2",
     "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "body-parser": "^1.20.2"
   }
 }
