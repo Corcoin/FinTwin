@@ -7,202 +7,242 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const PORT = process.env.PORT || 10000
+/* ===============================
+   API KEY DATABASE (memory)
+================================ */
 
-/* DATABASE (IN MEMORY) */
+const users = {}
 
-const keys = {}
+/* ===============================
+   RANDOM ENGINE
+================================ */
 
-/* RANDOM ENGINE */
-
-function rand(max){
-return Math.floor(Math.random()*max)
+function rand(max=1){
+return Math.random()*max
 }
 
-function token(prefix){
-return prefix+"_"+crypto.randomBytes(6).toString("hex")
+function id(prefix){
+return prefix+"_"+crypto.randomBytes(4).toString("hex")
 }
 
 const countries=["US","UK","DE","SG","BR"]
-const banks=["global_bank","retail_bank","metro_credit"]
-const devices=["ios","android","linux","windows"]
-const merchants=["retail","travel","gaming","crypto"]
+const devices=["ios","android","windows","linux"]
+const banks=["global_bank","metro_credit","retail_bank"]
 
-/* GENERATOR */
+/* ===============================
+   GENERATORS
+================================ */
 
 function entity(){
-
 return{
-
-entity_id:token("ent"),
-country:countries[rand(countries.length)],
-risk:Math.random(),
-customer_since:Date.now()-rand(1000000000)
-
+entity_id:id("ent"),
+country:countries[Math.floor(rand(countries.length))],
+risk:rand()
+}
 }
 
+function bank(){
+return{
+bank_id:id("bank"),
+name:banks[Math.floor(rand(banks.length))],
+country:countries[Math.floor(rand(countries.length))]
+}
 }
 
 function account(){
-
 return{
-
-account_id:token("acct"),
-bank:banks[rand(banks.length)],
-currency:"USD",
-balance:rand(200000)
-
+account_id:id("acct"),
+bank:banks[Math.floor(rand(banks.length))],
+balance:Math.floor(rand(100000))
 }
-
 }
 
 function device(){
-
 return{
-
-device_id:token("dev"),
-os:devices[rand(devices.length)],
-trust_score:Math.random()
-
+device_id:id("dev"),
+os:devices[Math.floor(rand(devices.length))],
+trust_score:rand()
+}
 }
 
-}
-
-function merchant(){
-
+function session(){
 return{
-
-merchant_id:token("mer"),
-category:merchants[rand(merchants.length)],
-risk_level:Math.random()
-
+session_id:id("ses"),
+device_id:id("dev"),
+login_time:Date.now()
 }
-
 }
 
 function transaction(){
+return{
+tx_id:id("tx"),
+amount:Math.floor(rand(5000)),
+currency:"USD",
+channel:["card","wire","online"][Math.floor(rand(3))],
+timestamp:Date.now()
+}
+}
+
+function fraudRing(){
+return{
+ring_id:id("ring"),
+members:[id("ent"),id("ent"),id("ent")],
+score:rand()
+}
+}
+
+function amlFlow(){
+
+const nodes=[id("acct"),id("acct"),id("acct")]
 
 return{
+flow_id:id("aml"),
+nodes,
+edges:[
+{from:nodes[0],to:nodes[1],amount:rand(9000)},
+{from:nodes[1],to:nodes[2],amount:rand(9000)}
+]
+}
 
-tx_id:token("tx"),
-account_id:token("acct"),
-merchant:merchant(),
-amount:rand(3000),
-timestamp:Date.now(),
-channel:["card","wire","crypto","online"][rand(4)]
+}
+
+/* ===============================
+   MEMORY POOLS (for scaling)
+================================ */
+
+const pools={
+entity:[],
+bank:[],
+account:[],
+device:[],
+session:[],
+transaction:[],
+fraud:[],
+aml:[]
+}
+
+function refill(){
+
+for(let i=0;i<5000;i++){
+
+pools.entity.push(entity())
+pools.bank.push(bank())
+pools.account.push(account())
+pools.device.push(device())
+pools.session.push(session())
+pools.transaction.push(transaction())
+pools.fraud.push(fraudRing())
+pools.aml.push(amlFlow())
 
 }
 
 }
 
-function universe(){
+refill()
 
-const tx=transaction()
+setInterval(()=>{
+if(pools.entity.length<1000) refill()
+},2000)
 
-return{
-
-entity:entity(),
-account:account(),
-device:device(),
-transaction:tx,
-risk_score:Math.random(),
-metadata:{
-engine:"synthetic-financial-universe",
-version:"1.0"
-}
-
-}
-
-}
-
-/* API KEY SYSTEM */
-
-app.post("/create-key",(req,res)=>{
-
-const key="sf_"+crypto.randomBytes(12).toString("hex")
-
-keys[key]={
-
-credits:1
-
-}
-
-res.json({
-
-api_key:key,
-free_calls:1
-
-})
-
-})
-
-/* ADD CREDITS */
-
-app.post("/add-credits",(req,res)=>{
-
-const {key,amount}=req.body
-
-if(!keys[key]){
-
-return res.status(401).json({error:"invalid key"})
-
-}
-
-keys[key].credits+=amount
-
-res.json({credits:keys[key].credits})
-
-})
-
-/* AUTH */
+/* ===============================
+   AUTH
+================================ */
 
 function auth(req,res,next){
 
 const key=req.headers["x-api-key"]
 
-if(!keys[key]){
-
+if(!users[key]){
 return res.status(401).json({error:"invalid key"})
-
 }
 
-if(keys[key].credits<=0){
-
-return res.status(403).json({error:"no credits"})
-
+if(users[key].credits<=0){
+return res.status(402).json({error:"no credits"})
 }
 
-keys[key].credits--
+users[key].credits-=1
 
 next()
-
 }
 
-/* API */
+/* ===============================
+   KEY CREATION
+================================ */
 
-app.get("/api/universe",auth,(req,res)=>{
+app.post("/create-key",(req,res)=>{
 
-res.json(universe())
+const key="sf_"+crypto.randomBytes(8).toString("hex")
+
+users[key]={credits:1}
+
+res.json({
+api_key:key,
+free_calls:1,
+price_per_call:"$0.01"
+})
 
 })
 
-/* STREAM */
+/* ===============================
+   ADD CREDITS
+================================ */
 
-app.get("/stream",auth,(req,res)=>{
+app.post("/add-credits",(req,res)=>{
+
+const {key,amount}=req.body
+
+if(!users[key]) return res.json({error:"invalid key"})
+
+users[key].credits+=amount
+
+res.json({credits:users[key].credits})
+
+})
+
+/* ===============================
+   API ROUTES
+================================ */
+
+app.get("/api/entity",auth,(req,res)=>res.json(pools.entity.pop()))
+app.get("/api/bank",auth,(req,res)=>res.json(pools.bank.pop()))
+app.get("/api/account",auth,(req,res)=>res.json(pools.account.pop()))
+app.get("/api/device",auth,(req,res)=>res.json(pools.device.pop()))
+app.get("/api/session",auth,(req,res)=>res.json(pools.session.pop()))
+app.get("/api/transaction",auth,(req,res)=>res.json(pools.transaction.pop()))
+app.get("/api/fraud-ring",auth,(req,res)=>res.json(pools.fraud.pop()))
+app.get("/api/aml-flow",auth,(req,res)=>res.json(pools.aml.pop()))
+
+/* ===============================
+   LIVE STREAM
+================================ */
+
+app.get("/stream",(req,res)=>{
 
 res.setHeader("Content-Type","text/event-stream")
 res.setHeader("Cache-Control","no-cache")
+res.setHeader("Connection","keep-alive")
 
 setInterval(()=>{
 
-res.write(`data: ${JSON.stringify(universe())}\n\n`)
+const data={
+entity:pools.entity.pop(),
+account:pools.account.pop(),
+device:pools.device.pop(),
+transaction:pools.transaction.pop()
+}
+
+res.write(`data: ${JSON.stringify(data)}\n\n`)
 
 },1000)
 
 })
 
+/* ===============================
+   SERVER
+================================ */
+
+const PORT=process.env.PORT || 3000
+
 app.listen(PORT,()=>{
-
-console.log("API running")
-
+console.log("API running on port "+PORT)
 })
